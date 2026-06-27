@@ -93,9 +93,46 @@ def train_models(df):
     }
 
     results = []
+    results_dir = Path("results")
+    results_dir.mkdir(exist_ok=True)
+
     for name, model in models.items():
         model.fit(X_train, y_train)
         preds = model.predict(X_test)
+        cm = confusion_matrix(y_test, preds)
+
+        cm_path = results_dir / f"{name.lower().replace(' ', '_')}_confusion_matrix.png"
+        plt.figure(figsize=(5, 4))
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=["No Failure", "Failure"],
+            yticklabels=["No Failure", "Failure"],
+        )
+        plt.title(f"{name} - Confusion Matrix")
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+        plt.tight_layout()
+        plt.savefig(cm_path, dpi=300, bbox_inches="tight")
+        plt.close()
+        print(f"Saved confusion matrix: {cm_path}")
+
+        if hasattr(model, "feature_importances_"):
+            importances = pd.Series(model.feature_importances_, index=features)
+            importances = importances.sort_values(ascending=False)
+            fi_path = results_dir / f"{name.lower().replace(' ', '_')}_feature_importance.png"
+            plt.figure(figsize=(8, 4))
+            sns.barplot(x=importances.values, y=importances.index, palette="viridis")
+            plt.title(f"{name} - Feature Importance")
+            plt.xlabel("Importance")
+            plt.ylabel("Feature")
+            plt.tight_layout()
+            plt.savefig(fi_path, dpi=300, bbox_inches="tight")
+            plt.close()
+            print(f"Saved feature importance plot: {fi_path}")
+
         results.append(
             {
                 "model": name,
@@ -103,7 +140,7 @@ def train_models(df):
                 "precision": round(precision_score(y_test, preds), 4),
                 "recall": round(recall_score(y_test, preds), 4),
                 "f1_score": round(f1_score(y_test, preds), 4),
-                "confusion_matrix": confusion_matrix(y_test, preds).tolist(),
+                "confusion_matrix": cm.tolist(),
             }
         )
 
